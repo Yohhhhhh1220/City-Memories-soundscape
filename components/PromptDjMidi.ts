@@ -44,9 +44,11 @@ export class PromptDjMidi extends LitElement {
       height: 40px;
       z-index: 10;
     }
-    #logo svg {
+    #logo svg,
+    #logo img {
       width: 100%;
       height: 100%;
+      object-fit: contain;
     }
     #grid {
       width: 35vmin;
@@ -234,9 +236,11 @@ export class PromptDjMidi extends LitElement {
         width: 200px;
         height: 60px;
     }
-    #logo svg {
+    #logo svg,
+    #logo img {
         width: 100%;
         height: 100%;
+        object-fit: contain;
     }
     h1 {
         font-size: 1.8rem;
@@ -320,9 +324,7 @@ export class PromptDjMidi extends LitElement {
 </head>
 <body>
   <div id="logo">
-    <svg viewBox="0 0 200 60" xmlns="http://www.w3.org/2000/svg">
-      <text x="10" y="40" font-family="'Noto Sans JP', sans-serif" font-size="32" font-weight="bold" fill="#2c3e50">City Memories</text>
-    </svg>
+    <img src="/logo.svg" alt="City Memories" />
   </div>
   <h1>あなたの今の気分を選びましょう！<br><span style="font-size: 0.7em; font-weight: 300;">Choose your current mood!</span></h1>
   <div class="mood-options" id="controller"></div>
@@ -410,9 +412,7 @@ export class PromptDjMidi extends LitElement {
     })}></div>
 
       <div id="logo">
-        <svg viewBox="0 0 200 60" xmlns="http://www.w3.org/2000/svg">
-          <text x="10" y="40" font-family="Arial, sans-serif" font-size="32" font-weight="bold" fill="#fff">City Memories</text>
-        </svg>
+        <img src="/logo.svg" alt="City Memories" />
       </div>
 
       <play-pause-button
