@@ -40,8 +40,8 @@ export class PromptDjMidi extends LitElement {
       top: 20px;
       left: 50%;
       transform: translateX(-50%);
-      width: 120px;
-      height: 40px;
+      width: 360px;
+      height: 120px;
       z-index: 10;
     }
     #logo svg,
@@ -233,8 +233,8 @@ export class PromptDjMidi extends LitElement {
     }
     #logo {
         margin-bottom: 20px;
-        width: 200px;
-        height: 60px;
+        width: 600px;
+        height: 180px;
     }
     #logo svg,
     #logo img {
