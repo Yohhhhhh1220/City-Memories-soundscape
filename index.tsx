@@ -15,7 +15,10 @@ import { AudioAnalyser } from './utils/AudioAnalyser';
 const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
 if (!apiKey) {
   console.error('API_KEY or GEMINI_API_KEY environment variable is not set');
-  alert('APIキーが設定されていません。Vercelの環境変数設定を確認してください。');
+  console.error('環境変数の確認: API_KEY=', process.env.API_KEY, 'GEMINI_API_KEY=', process.env.GEMINI_API_KEY);
+  alert('APIキーが設定されていません。Vercelの環境変数設定を確認してください。\n\n設定方法:\n1. Vercelのプロジェクトページ → Settings → Environment Variables\n2. 変数名: GEMINI_API_KEY または API_KEY\n3. 値: あなたのGemini APIキー\n4. 再デプロイを実行');
+} else {
+  console.log('APIキーが設定されています（長さ:', apiKey.length, '文字）');
 }
 
 const ai = new GoogleGenAI({ apiKey: apiKey || '' });

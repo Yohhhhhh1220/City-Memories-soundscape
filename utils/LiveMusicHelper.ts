@@ -45,11 +45,13 @@ export class LiveMusicHelper extends EventTarget {
 
   private async connect(): Promise<LiveMusicSession> {
     try {
+      console.log('WebSocket接続を開始します...');
       this.sessionPromise = this.ai.live.music.connect({
         model: this.model,
         callbacks: {
           onmessage: async (e: LiveMusicServerMessage) => {
             if (e.setupComplete) {
+              console.log('WebSocket接続が確立されました');
               this.connectionError = false;
             }
             if (e.filteredPrompt) {
@@ -61,22 +63,41 @@ export class LiveMusicHelper extends EventTarget {
             }
           },
           onerror: (error?: Error) => {
+            console.error('WebSocket接続エラー:', error);
             this.connectionError = true;
             this.stop();
-            const errorMessage = error?.message || 'WebSocket接続エラーが発生しました。APIキーを確認してください。';
+            let errorMessage = 'WebSocket接続エラーが発生しました。';
+            if (error?.message) {
+              errorMessage += `\n詳細: ${error.message}`;
+            }
+            errorMessage += '\n\n確認事項:\n1. APIキーが正しく設定されているか\n2. APIキーが有効か（Gemini APIの制限を確認）\n3. ネットワーク接続が正常か';
             this.dispatchEvent(new CustomEvent('error', { detail: errorMessage }));
           },
-          onclose: () => {
+          onclose: (event?: CloseEvent) => {
+            console.warn('WebSocket接続が閉じられました', event);
             this.connectionError = true;
             this.stop();
-            this.dispatchEvent(new CustomEvent('error', { detail: 'WebSocket接続が閉じられました。APIキーとネットワーク接続を確認してください。' }));
+            let errorMessage = 'WebSocket接続が閉じられました。';
+            if (event) {
+              errorMessage += `\nコード: ${event.code}`;
+              if (event.reason) {
+                errorMessage += `\n理由: ${event.reason}`;
+              }
+            }
+            errorMessage += '\n\n確認事項:\n1. APIキーが正しく設定されているか（Vercelの環境変数を確認）\n2. APIキーが有効で、Gemini APIのアクセス権限があるか\n3. ネットワーク接続が正常か\n4. ファイアウォールがWebSocket接続をブロックしていないか';
+            this.dispatchEvent(new CustomEvent('error', { detail: errorMessage }));
           },
         },
       });
       return this.sessionPromise;
     } catch (error: any) {
+      console.error('接続エラー:', error);
       this.connectionError = true;
-      const errorMessage = error?.message || '接続に失敗しました。APIキーを確認してください。';
+      let errorMessage = '接続に失敗しました。';
+      if (error?.message) {
+        errorMessage += `\n詳細: ${error.message}`;
+      }
+      errorMessage += '\n\n確認事項:\n1. APIキーが正しく設定されているか\n2. APIキーが有効か\n3. ネットワーク接続が正常か';
       this.dispatchEvent(new CustomEvent('error', { detail: errorMessage }));
       throw error;
     }
