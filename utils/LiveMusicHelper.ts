@@ -44,34 +44,42 @@ export class LiveMusicHelper extends EventTarget {
   }
 
   private async connect(): Promise<LiveMusicSession> {
-    this.sessionPromise = this.ai.live.music.connect({
-      model: this.model,
-      callbacks: {
-        onmessage: async (e: LiveMusicServerMessage) => {
-          if (e.setupComplete) {
-            this.connectionError = false;
-          }
-          if (e.filteredPrompt) {
-            this.filteredPrompts = new Set([...this.filteredPrompts, e.filteredPrompt.text!])
-            this.dispatchEvent(new CustomEvent<LiveMusicFilteredPrompt>('filtered-prompt', { detail: e.filteredPrompt }));
-          }
-          if (e.serverContent?.audioChunks) {
-            await this.processAudioChunks(e.serverContent.audioChunks);
-          }
+    try {
+      this.sessionPromise = this.ai.live.music.connect({
+        model: this.model,
+        callbacks: {
+          onmessage: async (e: LiveMusicServerMessage) => {
+            if (e.setupComplete) {
+              this.connectionError = false;
+            }
+            if (e.filteredPrompt) {
+              this.filteredPrompts = new Set([...this.filteredPrompts, e.filteredPrompt.text!])
+              this.dispatchEvent(new CustomEvent<LiveMusicFilteredPrompt>('filtered-prompt', { detail: e.filteredPrompt }));
+            }
+            if (e.serverContent?.audioChunks) {
+              await this.processAudioChunks(e.serverContent.audioChunks);
+            }
+          },
+          onerror: (error?: Error) => {
+            this.connectionError = true;
+            this.stop();
+            const errorMessage = error?.message || 'WebSocket接続エラーが発生しました。APIキーを確認してください。';
+            this.dispatchEvent(new CustomEvent('error', { detail: errorMessage }));
+          },
+          onclose: () => {
+            this.connectionError = true;
+            this.stop();
+            this.dispatchEvent(new CustomEvent('error', { detail: 'WebSocket接続が閉じられました。APIキーとネットワーク接続を確認してください。' }));
+          },
         },
-        onerror: () => {
-          this.connectionError = true;
-          this.stop();
-          this.dispatchEvent(new CustomEvent('error', { detail: 'Connection error, please restart audio.' }));
-        },
-        onclose: () => {
-          this.connectionError = true;
-          this.stop();
-          this.dispatchEvent(new CustomEvent('error', { detail: 'Connection error, please restart audio.' }));
-        },
-      },
-    });
-    return this.sessionPromise;
+      });
+      return this.sessionPromise;
+    } catch (error: any) {
+      this.connectionError = true;
+      const errorMessage = error?.message || '接続に失敗しました。APIキーを確認してください。';
+      this.dispatchEvent(new CustomEvent('error', { detail: errorMessage }));
+      throw error;
+    }
   }
 
   private setPlaybackState(state: PlaybackState) {
@@ -139,15 +147,21 @@ export class LiveMusicHelper extends EventTarget {
   }, 200);
 
   public async play() {
-    this.setPlaybackState('loading');
-    this.session = await this.getSession();
-    await this.setWeightedPrompts(this.prompts);
-    await this.audioContext.resume();
-    this.session.play();
-    this.outputNode.connect(this.audioContext.destination);
-    if (this.extraDestination) this.outputNode.connect(this.extraDestination);
-    this.outputNode.gain.setValueAtTime(0, this.audioContext.currentTime);
-    this.outputNode.gain.linearRampToValueAtTime(1, this.audioContext.currentTime + 0.1);
+    try {
+      this.setPlaybackState('loading');
+      this.session = await this.getSession();
+      await this.setWeightedPrompts(this.prompts);
+      await this.audioContext.resume();
+      this.session.play();
+      this.outputNode.connect(this.audioContext.destination);
+      if (this.extraDestination) this.outputNode.connect(this.extraDestination);
+      this.outputNode.gain.setValueAtTime(0, this.audioContext.currentTime);
+      this.outputNode.gain.linearRampToValueAtTime(1, this.audioContext.currentTime + 0.1);
+    } catch (error: any) {
+      this.setPlaybackState('stopped');
+      const errorMessage = error?.message || '再生に失敗しました。APIキーとネットワーク接続を確認してください。';
+      this.dispatchEvent(new CustomEvent('error', { detail: errorMessage }));
+    }
   }
 
   public pause() {

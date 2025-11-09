@@ -11,7 +11,14 @@ import { ToastMessage } from './components/ToastMessage';
 import { LiveMusicHelper } from './utils/LiveMusicHelper';
 import { AudioAnalyser } from './utils/AudioAnalyser';
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Validate API key
+const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
+if (!apiKey) {
+  console.error('API_KEY or GEMINI_API_KEY environment variable is not set');
+  alert('APIキーが設定されていません。Vercelの環境変数設定を確認してください。');
+}
+
+const ai = new GoogleGenAI({ apiKey: apiKey || '' });
 const model = 'lyria-realtime-exp';
 
 function main() {
@@ -70,56 +77,79 @@ function main() {
 
   // Listen for messages from external websites to control the prompts.
   window.addEventListener('message', (e) => {
-    // For security, in a real application, you should check the origin:
-    // if (e.origin !== 'https://your-trusted-site.com') return;
-
-    if (typeof e.data !== 'object' || e.data === null) return;
-
-    switch (e.data.type) {
-      case 'setWeights': {
-        const weights = e.data.payload as Record<string, number>;
-        if (!weights) return;
-
-        const newPrompts = new Map<string, Prompt>();
-        // Create a new map based on the current prompts and update weights
-        for (const prompt of pdjMidi.prompts.values()) {
-          const newPrompt = { ...prompt };
-          // Set weight from payload, or 0 if not specified
-          newPrompt.weight = weights[prompt.text] ?? 0;
-          newPrompts.set(prompt.promptId, newPrompt);
-        }
-        
-        // Update the UI
-        pdjMidi.prompts = newPrompts;
-
-        // Update the music generation
-        liveMusicHelper.setWeightedPrompts(newPrompts);
-        break;
+    try {
+      // Ignore messages from browser extensions (chrome-extension://, moz-extension://, etc.)
+      if (e.origin && (
+        e.origin.startsWith('chrome-extension://') ||
+        e.origin.startsWith('moz-extension://') ||
+        e.origin.startsWith('safari-extension://') ||
+        e.origin.startsWith('ms-browser-extension://')
+      )) {
+        return;
       }
-      case 'setEmotionClickCounts': {
-        const counts = e.data.payload as Record<string, number>;
-        if (!counts) return;
-        pdjMidi.setEmotionClickCounts(counts);
 
-        // Calculate new weights based on click counts
-        const newPrompts = new Map<string, Prompt>();
-        const weightFactor = 2 / 3; // 3 clicks reach max weight of 2
+      // For security, in a real application, you should check the origin:
+      // if (e.origin !== 'https://your-trusted-site.com') return;
 
-        for (const prompt of pdjMidi.prompts.values()) {
-          const newPrompt = { ...prompt };
-          const clickCount = counts[prompt.emotion] ?? 0;
+      if (typeof e.data !== 'object' || e.data === null) return;
+
+      // Only process messages with expected types
+      if (!e.data.type || (e.data.type !== 'setWeights' && e.data.type !== 'setEmotionClickCounts')) {
+        return;
+      }
+
+      switch (e.data.type) {
+        case 'setWeights': {
+          const weights = e.data.payload as Record<string, number>;
+          if (!weights) return;
+
+          const newPrompts = new Map<string, Prompt>();
+          // Create a new map based on the current prompts and update weights
+          for (const prompt of pdjMidi.prompts.values()) {
+            const newPrompt = { ...prompt };
+            // Set weight from payload, or 0 if not specified
+            newPrompt.weight = weights[prompt.text] ?? 0;
+            newPrompts.set(prompt.promptId, newPrompt);
+          }
           
-          // Calculate weight, capping at the max value of 2
-          newPrompt.weight = Math.min(2, clickCount * weightFactor);
-          newPrompts.set(prompt.promptId, newPrompt);
-        }
-        
-        // Update the UI with new weights
-        pdjMidi.prompts = newPrompts;
+          // Update the UI
+          pdjMidi.prompts = newPrompts;
 
-        // Update the music generation
-        liveMusicHelper.setWeightedPrompts(newPrompts);
-        break;
+          // Update the music generation
+          liveMusicHelper.setWeightedPrompts(newPrompts);
+          break;
+        }
+        case 'setEmotionClickCounts': {
+          const counts = e.data.payload as Record<string, number>;
+          if (!counts) return;
+          pdjMidi.setEmotionClickCounts(counts);
+
+          // Calculate new weights based on click counts
+          const newPrompts = new Map<string, Prompt>();
+          const weightFactor = 2 / 3; // 3 clicks reach max weight of 2
+
+          for (const prompt of pdjMidi.prompts.values()) {
+            const newPrompt = { ...prompt };
+            const clickCount = counts[prompt.emotion] ?? 0;
+            
+            // Calculate weight, capping at the max value of 2
+            newPrompt.weight = Math.min(2, clickCount * weightFactor);
+            newPrompts.set(prompt.promptId, newPrompt);
+          }
+          
+          // Update the UI with new weights
+          pdjMidi.prompts = newPrompts;
+
+          // Update the music generation
+          liveMusicHelper.setWeightedPrompts(newPrompts);
+          break;
+        }
+      }
+    } catch (error) {
+      // Silently ignore errors from browser extensions or unexpected messages
+      // This prevents console errors from browser extensions
+      if (error instanceof Error && !error.message.includes('message channel')) {
+        console.warn('Error processing message:', error);
       }
     }
   });

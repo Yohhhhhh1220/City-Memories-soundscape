@@ -38,8 +38,7 @@ export class PromptDjMidi extends LitElement {
     #logo {
       position: absolute;
       top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
+      right: 20px;
       width: 360px;
       height: 120px;
       z-index: 10;
