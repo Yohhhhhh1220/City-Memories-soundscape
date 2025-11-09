@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Emotion Controller</title>
+  <style>
+    body {
+      font-family: 'Google Sans', sans-serif;
+      background-color: #f0f0f0;
+      color: #333;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    #logo {
+      margin-bottom: 20px;
+      width: 200px;
+      height: 60px;
+    }
+    #logo svg {
+      width: 100%;
+      height: 100%;
+    }
+    h1 {
+      font-weight: 400;
+      text-align: center;
+      line-height: 1.4;
+    }
+    #controller {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 15px;
+      max-width: 800px;
+      width: 100%;
+    }
+    button {
+      font-family: inherit;
+      font-size: 16px;
+      padding: 15px 10px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      background-color: #fff;
+      cursor: pointer;
+      transition: background-color 0.2s, transform 0.1s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      flex-direction: column;
+      line-height: 1.2;
+    }
+    button:hover {
+      background-color: #e9e9e9;
+    }
+    button:active {
+      transform: scale(0.95);
+    }
+    .count {
+      font-weight: bold;
+      background-color: #ddd;
+      color: #333;
+      padding: 2px 8px;
+      border-radius: 10px;
+      min-width: 20px;
+      text-align: center;
+      margin-top: 5px;
+    }
+    #instructions {
+      margin-top: 20px;
+      background: #fff;
+      padding: 15px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      max-width: 800px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    li {
+      margin-bottom: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div id="logo">
+    <svg viewBox="0 0 200 60" xmlns="http://www.w3.org/2000/svg">
+      <text x="10" y="40" font-family="'Google Sans', sans-serif" font-size="32" font-weight="bold" fill="#333">City Memories</text>
+    </svg>
+  </div>
+  <h1>Emotion Controller /<br>気分コントローラー</h1>
+
+  <div id="controller"></div>
+
+  <div id="instructions">
+    <p><strong>How to use: / 使い方:</strong></p>
+    <ol>
+      <li>Open the main music application in another window. / 別のウィンドウでメインの音楽アプリケーションを開きます。</li>
+      <li>Keep this window open. / このウィンドウは開いたままにしてください。</li>
+      <li>Click the buttons above to increase the size of the corresponding knob in the music app. / 上のボタンをクリックすると、音楽アプリの対応するノブが大きくなります。</li>
+    </ol>
+  </div>
+
+
+  <script>
+    const emotions = [
+      { english: 'Excited', japanese: 'わくわくする' },
+      { english: 'Joyful', japanese: '楽しい' },
+      { english: 'Calm', japanese: '穏やか' },
+      { english: 'Content', japanese: '満たされている' },
+      { english: 'Lonely', japanese: '孤独を感じる' },
+      { english: 'Tired', japanese: '疲れている' },
+      { english: 'Irritated', japanese: 'いらいらする' },
+      { english: 'Anxious / Rushed', japanese: '焦っている' }
+    ];
+
+    const controller = document.getElementById('controller');
+    const clickCounts = {};
+
+    // This will be the window where your main app is running.
+    // For this to work, you should open this `external.html` page
+    // from your main app, for example using `window.open('external.html')`.
+    // If you open them separately, you would need a more complex
+    // setup (like BroadcastChannel or a server).
+    // For this demo, we assume `window.opener` is the main app.
+    const mainAppWindow = window.opener;
+
+    emotions.forEach(emotion => {
+      clickCounts[emotion.english] = 0;
+
+      const button = document.createElement('button');
+      const textDiv = document.createElement('div');
+      textDiv.innerHTML = `${emotion.japanese}<br><span style="font-size: 0.8em; opacity: 0.8;">${emotion.english}</span>`;
+      const countSpan = document.createElement('span');
+      countSpan.className = 'count';
+      countSpan.textContent = '0';
+      
+      button.appendChild(textDiv);
+      button.appendChild(countSpan);
+
+      button.addEventListener('click', () => {
+        clickCounts[emotion.english]++;
+        countSpan.textContent = clickCounts[emotion.english];
+        
+        if (mainAppWindow) {
+          // Send a message to the main application window.
+          // The '*' is a wildcard for the target origin. For security,
+          // you should replace it with the actual origin of your main app.
+          mainAppWindow.postMessage({
+            type: 'setEmotionClickCounts',
+            payload: clickCounts
+          }, '*');
+        } else {
+          console.warn('Could not find the main application window. Make sure this page was opened from the main app.');
+        }
+      });
+
+      controller.appendChild(button);
+    });
+
+  </script>
+</body>
+</html>
