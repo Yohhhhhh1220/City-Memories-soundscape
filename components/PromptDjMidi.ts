@@ -87,6 +87,22 @@ export class PromptDjMidi extends LitElement {
         background-color: #fff;
         color: #000;
       }
+      &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+    }
+    #generation-progress {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.8);
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      z-index: 100;
     }
     select {
       font: inherit;
@@ -109,6 +125,8 @@ export class PromptDjMidi extends LitElement {
   @state() private midiInputIds: string[] = [];
   @state() private activeMidiInputId: string | null = null;
   @state() private emotionClickCounts = new Map<string, number>();
+  @state() private isGeneratingLongMusic = false;
+  @state() private generationProgress: { current: number; total: number } | null = null;
 
   @property({ type: Object })
   private filteredPrompts = new Set<string>();
@@ -195,6 +213,18 @@ export class PromptDjMidi extends LitElement {
 
   private handlePlayPause() {
     this.dispatchEvent(new CustomEvent('play-pause'));
+  }
+
+  private handleGenerateLongMusic() {
+    this.dispatchEvent(new CustomEvent('generate-long-music'));
+  }
+
+  public setGeneratingLongMusic(isGenerating: boolean) {
+    this.isGeneratingLongMusic = isGenerating;
+  }
+
+  public setGenerationProgress(progress: { current: number; total: number } | null) {
+    this.generationProgress = progress;
   }
 
   public addFilteredPrompt(promptText: string) {
@@ -443,6 +473,11 @@ export class PromptDjMidi extends LitElement {
           class=${this.showMidi ? 'active' : ''}>
           MIDI
         </button>
+        <button
+          @click=${this.handleGenerateLongMusic}
+          ?disabled=${this.isGeneratingLongMusic}>
+          ${this.isGeneratingLongMusic ? '生成中...' : '長い音楽を生成'}
+        </button>
         ${this.showMidi && this.midiInputIds.length > 0
       ? html`<select
               @change=${(e: Event) =>
@@ -457,7 +492,12 @@ export class PromptDjMidi extends LitElement {
       )}
             </select>`
       : ''}
-      </div>`;
+      </div>
+      ${this.generationProgress
+      ? html`<div id="generation-progress">
+              生成中: ${this.generationProgress.current} / ${this.generationProgress.total}
+            </div>`
+      : ''}`;
   }
 }
 

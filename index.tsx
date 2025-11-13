@@ -10,6 +10,8 @@ import { PromptDjMidi } from './components/PromptDjMidi';
 import { ToastMessage } from './components/ToastMessage';
 import { LiveMusicHelper } from './utils/LiveMusicHelper';
 import { AudioAnalyser } from './utils/AudioAnalyser';
+import { LongMusicGenerator } from './utils/LongMusicGenerator';
+import { MusicPlanGenerator } from './utils/MusicPlanGenerator';
 
 // Validate API key
 const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
@@ -77,6 +79,71 @@ function main() {
     const level = customEvent.detail;
     pdjMidi.audioLevel = level;
   }));
+
+  // 長い音楽生成機能
+  const longMusicGenerator = new LongMusicGenerator(ai, model);
+  const musicPlanGenerator = new MusicPlanGenerator(apiKey || '');
+
+  longMusicGenerator.addEventListener('progress', ((e: Event) => {
+    const customEvent = e as CustomEvent<{ current: number; total: number; stanza: any }>;
+    const progress = customEvent.detail;
+    pdjMidi.setGenerationProgress({ current: progress.current, total: progress.total });
+  }));
+
+  longMusicGenerator.addEventListener('error', errorToast);
+
+  pdjMidi.addEventListener('generate-long-music', async () => {
+    try {
+      pdjMidi.setGeneratingLongMusic(true);
+      pdjMidi.setGenerationProgress(null);
+
+      // ユーザーに音楽イメージを入力してもらう
+      const userRequest = prompt('音楽のイメージを入力してください（例: 1分ぐらいの朝に聞く爽やかなプログレッシブハウス）:');
+      if (!userRequest) {
+        pdjMidi.setGeneratingLongMusic(false);
+        return;
+      }
+
+      // 総再生時間を入力してもらう（デフォルト60秒）
+      const totalSecondsInput = prompt('総再生時間（秒）を入力してください（デフォルト: 60）:', '60');
+      const totalSeconds = totalSecondsInput ? parseInt(totalSecondsInput, 10) : 60;
+
+      if (isNaN(totalSeconds) || totalSeconds <= 0) {
+        toastMessage.show('有効な再生時間を入力してください');
+        pdjMidi.setGeneratingLongMusic(false);
+        return;
+      }
+
+      toastMessage.show('MusicPlanを生成中...');
+      
+      // MusicPlanを生成
+      const musicPlan = await musicPlanGenerator.generateMusicPlan(userRequest, totalSeconds);
+      
+      toastMessage.show('音楽を生成中...（時間がかかります）');
+      
+      // 音楽を生成
+      const audioBlob = await longMusicGenerator.generateMusic(musicPlan);
+      
+      // ダウンロード
+      const url = URL.createObjectURL(audioBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${musicPlan.title || 'generated-music'}.wav`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toastMessage.show('音楽の生成が完了しました！');
+      pdjMidi.setGeneratingLongMusic(false);
+      pdjMidi.setGenerationProgress(null);
+    } catch (error: any) {
+      console.error('長い音楽生成エラー:', error);
+      toastMessage.show(`エラー: ${error.message}`);
+      pdjMidi.setGeneratingLongMusic(false);
+      pdjMidi.setGenerationProgress(null);
+    }
+  });
 
   // Listen for messages from external websites to control the prompts.
   window.addEventListener('message', (e) => {
